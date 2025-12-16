@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analiza Techniczna: PVC vs Aluminium - Okno 7200x3200mm</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            height: 300px;
+            margin: 0 auto;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+    </style>
+    <!-- Chosen Palette: Construction Precision (Slate, Emerald, Red, Amber) -->
+    <!-- Application Structure Plan:
+        1. Header: Project Context (The 7.2x3.2m Challenge).
+        2. Control Panel: User toggles material (PVC vs Alu) and environmental conditions (Wind/Temp).
+        3. Dashboard Grid:
+            - Statics Module: Chart comparing Deflection vs Norm + Visual Canvas simulation of bending.
+            - Thermodynamics Module: Chart comparing Expansion + Contextual textual analysis.
+        4. Summary Table: Final pass/fail status and recommendation.
+        5. Conclusion: Expert recommendation based on the data.
+        Rationale: This structure separates the two main failure modes (Mechanical & Thermal) allowing the user to isolate and understand each risk before seeing the cumulative verdict.
+    -->
+    <!-- Visualization & Content Choices:
+        - Deflection Comparator: Bar Chart (Chart.js) -> Goal: Compare -> Shows massive gap between PVC deflection (58mm) and Norm (10mm).
+        - Bending Simulator: HTML5 Canvas (Custom Drawing) -> Goal: Inform/Change -> Visually demonstrates the "bowing" effect on the mullion line.
+        - Thermal Expansion: Bar Chart (Chart.js) -> Goal: Compare -> Contrasts 14mm vs 4mm expansion.
+        - Interactive Text: Dynamic DOM updates -> Goal: Inform -> Explains specific consequences (e.g., "Szyba pęka") based on current state.
+        - CONFIRMATION: NO SVG graphics used. NO Mermaid JS used.
+    -->
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+    <!-- Header Section -->
+    <header class="bg-slate-900 text-white py-8 shadow-lg">
+        <div class="container mx-auto px-4 max-w-6xl">
+            <h1 class="text-3xl md:text-4xl font-bold mb-2">Analiza Wytrzymałościowa: Wielkogabarytowe Przeszklenie</h1>
+            <p class="text-slate-400 text-lg">Studium przypadku dla konstrukcji trapezowej 7200 mm (szer.) x 3200 mm (wys.)</p>
+            <div class="mt-6 flex flex-wrap gap-4 text-sm">
+                <span class="bg-slate-800 px-3 py-1 rounded border border-slate-700">Wymiar: 7.2m x 3.2m</span>
+                <span class="bg-slate-800 px-3 py-1 rounded border border-slate-700">Obciążenie Wiatrem: 946 Pa</span>
+                <span class="bg-slate-800 px-3 py-1 rounded border border-slate-700">Kolor: Czarny (Krytyczny dla Termiki)</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 max-w-6xl py-8 space-y-12">
+
+        <!-- Introduction -->
+        <section class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+            <h2 class="text-2xl font-bold mb-4 text-slate-900">Kontekst i Założenia Projektowe</h2>
+            <p class="text-slate-600 leading-relaxed mb-4">
+                Celem analizy jest porównanie kluczowych parametrów (sztywność statyczna i rozszerzalność termiczna) dla okna o ekstremalnych gabarytach 7.2 x 3.2 m. 
+                Standardowe systemy PVC z powszechnie stosowanym łącznikiem statycznym są porównywane z rozwiązaniem aluminiowym. 
+                Poniższe sekcje pozwalają na interaktywną weryfikację obliczeń.
+            </p>
+        </section>
+
+        <!-- Interactive Control Panel -->
+        <section class="bg-slate-100 p-6 rounded-xl border border-slate-300 sticky top-4 z-10 shadow-md">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+                <!-- Material Selector -->
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-500 mb-2">Wybierz Materiał do Symulacji</label>
+                    <div class="flex bg-white rounded-lg p-1 shadow-sm border border-slate-200">
+                        <button onclick="setMaterial('PVC')" id="btn-pvc" class="flex-1 py-2 px-4 rounded-md text-sm font-bold transition-colors bg-red-100 text-red-700 border border-red-200">System PVC (Standardowy Łącznik)</button>
+                        <button onclick="setMaterial('ALU')" id="btn-alu" class="flex-1 py-2 px-4 rounded-md text-sm font-bold transition-colors text-slate-500 hover:bg-slate-50">System Aluminium (Wysoka Statyka)</button>
+                    </div>
+                </div>
+
+                <!-- Wind Load Simulator -->
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-500 mb-2">Obciążenie Wiatrem (Pa)</label>
+                    <input type="range" id="windSlider" min="0" max="1200" value="946" class="w-full h-2 bg-slate-300 rounded-lg appearance-none cursor-pointer">
+                    <div class="flex justify-between text-xs text-slate-500 mt-1">
+                        <span>0 Pa</span>
+                        <span id="windValue" class="font-bold text-slate-900">946 Pa (Norma)</span>
+                        <span>1200 Pa</span>
+                    </div>
+                </div>
+
+                <!-- Temperature Simulator -->
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-500 mb-2">Temp. Profilu (°C)</label>
+                    <input type="range" id="tempSlider" min="-20" max="80" value="20" class="w-full h-2 bg-slate-300 rounded-lg appearance-none cursor-pointer">
+                    <div class="flex justify-between text-xs text-slate-500 mt-1">
+                        <span>-20°C</span>
+                        <span id="tempValue" class="font-bold text-slate-900">20°C</span>
+                        <span>80°C</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Analysis Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+            <!-- STATICS MODULE -->
+            <div class="space-y-6">
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 h-full">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                            <span class="text-2xl">🏗️</span> Analiza Statyczna (Ugięcie Liniowe)
+                        </h3>
+                        <span id="staticsStatus" class="px-3 py-1 text-xs font-bold rounded-full bg-red-100 text-red-800">KRYTYCZNE RYZYKO</span>
+                    </div>
+                    
+                    <p class="text-sm text-slate-600 mb-6">
+                        Najsłabszy element pionowy (łącznik statyczny o $I_y = 10.42 cm^4$ dla PVC) musi utrzymać obciążenie wiatrem 946 N/m². Norma dopuszcza maksymalne ugięcie $L/300 = 10.67 mm$.
+                        Wykres prezentuje, jak rzeczywiste ugięcie wypada na tle limitu.
+                    </p>
+
+                    <!-- Chart Container for Deflection -->
+                    <div class="chart-container mb-6">
+                        <canvas id="deflectionChart"></canvas>
+                    </div>
+
+                    <!-- Detailed Statics Metrics -->
+                    <div class="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-lg text-sm border border-slate-200">
+                        <div>
+                            <span class="block text-slate-500 text-xs">Ugięcie Rzeczywiste (mm)</span>
+                            <span id="deflectionValue" class="text-xl font-bold text-red-600">58.6 mm</span>
+                        </div>
+                        <div>
+                            <span class="block text-slate-500 text-xs">Wykorzystanie Normy</span>
+                            <span id="normUsage" class="text-xl font-bold text-red-600">549%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VISUAL SIMULATION MODULE -->
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col">
+                <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <span class="text-2xl">👀</span> Wizualizacja Deformacji Słupka (3.2m)
+                </h3>
+                <p class="text-sm text-slate-600 mb-4">
+                    Schematyczna wizualizacja ugięcia słupka pod wpływem wiatru (widok z boku, deformacja przeskalowana dla lepszej widoczności). 
+                    Początkowa linia to cienka kreska. Gruba linia to zdeformowany profil.
+                </p>
+                
+                <div class="flex-grow flex items-center justify-center bg-slate-100 rounded-lg border border-slate-200 relative overflow-hidden" style="min-height: 300px;">
+                    <!-- Canvas for drawing the beam bending -->
+                    <canvas id="beamCanvas" width="400" height="350"></canvas>
+                    <div class="absolute bottom-2 left-2 text-xs text-slate-400 font-mono">Symulacja Słupka 3.2m</div>
+                </div>
+                
+                <div id="visualCommentary" class="mt-4 p-3 bg-red-50 border-l-4 border-red-500 text-sm text-red-800 italic">
+                    "Przy takim ugięciu (ok. 6 cm) następuje trwałe uszkodzenie konstrukcji, pękanie tynków i ryzyko wypadnięcia pakietu szybowego."
+                </div>
+            </div>
+
+            <!-- THERMODYNAMICS MODULE -->
+            <div class="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div>
+                        <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                            <span class="text-2xl">🔥</span> Termika i "Efekt Bananowania"
+                        </h3>
+                        <p class="text-sm text-slate-600 mb-4">
+                            Dla czarnego koloru i wysokości 3.2m, rozszerzalność cieplna jest krytyczna. PVC ma kilkukrotnie wyższy współczynnik rozszerzalności ($\alpha$) niż aluminium. 
+                            Wydłużenie (ΔL) jest mierzone od referencyjnej temperatury montażu (20°C).
+                        </p>
+                        <div class="space-y-3">
+                            <div class="flex justify-between items-center p-3 bg-slate-50 rounded border border-slate-200">
+                                <span class="text-sm font-medium">Aktualna Temperatura (T)</span>
+                                <span id="currentTempDisplay" class="font-bold text-slate-800">20°C</span>
+                            </div>
+                            <div class="flex justify-between items-center p-3 bg-slate-50 rounded border border-slate-200">
+                                <span class="text-sm font-medium">Wydłużenie Profilu (ΔL)</span>
+                                <span id="expansionValue" class="font-bold text-red-600">0.0 mm</span>
+                            </div>
+                            <div id="thermalWarning" class="p-3 bg-amber-50 text-amber-800 text-sm rounded border border-amber-200 hidden">
+                                ⚠️ <strong>Krytyczne:</strong> Wydłużenie powoduje trwałe deformacje, pękanie zgrzewów oraz blokowanie skrzydeł!
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <!-- Chart Container for Thermal Expansion -->
+                        <div class="chart-container">
+                            <canvas id="thermalChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SUMMARY TABLE -->
+            <div class="lg:col-span-2 bg-slate-50 p-6 rounded-xl border border-slate-200">
+                <h3 class="text-xl font-bold text-slate-800 mb-6 text-center">Tabela Porównawcza i Wnioski</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left text-slate-600">
+                        <thead class="text-xs text-slate-700 uppercase bg-slate-200">
+                            <tr>
+                                <th class="px-6 py-3 rounded-l-lg">Parametr</th>
+                                <th class="px-6 py-3 bg-red-100 text-red-800">System PVC (Standardowy Łącznik)</th>
+                                <th class="px-6 py-3 bg-green-100 text-green-800 rounded-r-lg">System Aluminiowy (Wysoka Statyka)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="bg-white border-b">
+                                <td class="px-6 py-4 font-medium text-slate-900">Moment Bezwładności ($I_y$)</td>
+                                <td class="px-6 py-4 text-red-600 font-bold">10.42 cm⁴</td>
+                                <td class="px-6 py-4 text-green-600 font-bold">> 100 cm⁴</td>
+                            </tr>
+                            <tr class="bg-white border-b">
+                                <td class="px-6 py-4 font-medium text-slate-900">Ugięcie Rzeczywiste (946 Pa)</td>
+                                <td class="px-6 py-4 text-red-600 font-bold">58.6 mm (549% Normy)</td>
+                                <td class="px-6 py-4 text-green-600 font-bold">~6.1 mm (60% Normy)</td>
+                            </tr>
+                            <tr class="bg-white border-b">
+                                <td class="px-6 py-4 font-medium text-slate-900">Wydłużenie Termiczne (ΔT=50K)</td>
+                                <td class="px-6 py-4 text-red-600">~14 mm</td>
+                                <td class="px-6 py-4 text-green-600">~4 mm</td>
+                            </tr>
+                            <tr class="bg-white">
+                                <td class="px-6 py-4 font-medium text-slate-900">Werdykt Inżynierski</td>
+                                <td class="px-6 py-4"><span class="bg-red-100 text-red-800 text-xs font-bold px-2 py-0.5 rounded">NIEDOPUSZCZALNE</span></td>
+                                <td class="px-6 py-4"><span class="bg-green-100 text-green-800 text-xs font-bold px-2 py-0.5 rounded">REKOMENDOWANE</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- FINAL RECOMMENDATION -->
+            <div class="lg:col-span-2 bg-slate-800 text-white p-8 rounded-xl shadow-lg text-center">
+                <h2 class="text-2xl font-bold mb-4">Podsumowanie i Rekomendacja</h2>
+                <p class="text-lg text-slate-300 max-w-3xl mx-auto mb-6">
+                    Biorąc pod uwagę zarówno obciążenia statyczne (wiatr), jak i termiczne (kolor czarny, duża wysokość), konstrukcja w systemie PVC o tych gabarytach <strong>nie spełnia podstawowych wymogów bezpieczeństwa i trwałości</strong>. Jedynym rozwiązaniem, które zapewnia stabilność, jest zastosowanie ślusarki aluminiowej o odpowiednio dobranej statyce.
+                </p>
+                <div class="inline-block bg-green-600 text-white font-bold py-3 px-8 rounded-full shadow-lg transform hover:scale-105 transition-transform">
+                    Zalecana Materiał: Aluminium
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <footer class="bg-slate-900 text-slate-500 py-6 mt-12 text-center text-sm">
+        <p>&copy; 2025 Analiza Techniczna Stolarki Okiennej. Opracowano na podstawie PN-EN 1991-1-4.</p>
+    </footer>
+
+    <script>
+        // --- DATA & CONFIGURATION ---
+        const CONSTANTS = {
+            L: 320, // Wysokość w cm
+            NORM_LIMIT: 10.67, // mm (L/300)
+            PVC: {
+                name: 'System PVC',
+                Iy: 10.42, // cm4 - standardowy łącznik
+                alpha: 0.00007, // 1/K - współczynnik rozszerzalności
+                deflectionBase: 58.6, // mm - ugięcie bazowe dla 946 Pa
+                expansionBase: 14 // mm - wydłużenie bazowe dla 50K (70C - 20C)
+            },
+            ALU: {
+                name: 'System Aluminium',
+                Iy: 100, // cm4 - moment bezwładności dla wysokiej statyki
+                alpha: 0.000023, // 1/K
+                deflectionBase: 6.1, // mm
+                expansionBase: 4 // mm
+            },
+            BASE_WIND: 946, // Pa
+            BASE_TEMP_DIFF: 50 // K (zakładając 70C na zewnątrz, 20C montaż)
+        };
+
+        // State
+        let state = {
+            material: 'PVC', // 'PVC' or 'ALU'
+            windLoad: 946, // Pa
+            temperature: 70 // Celsius (ustawione na 70C dla lepszej demonstracji termiki na starcie)
+        };
+
+        // Chart Instances
+        let deflectionChartInstance = null;
+        let thermalChartInstance = null;
+
+        // --- CALCULATIONS ---
+        
+        // Obliczenie ugięcia f (mm)
+        function calculateDeflection(materialKey, windLoad) {
+            const material = CONSTANTS[materialKey];
+            // Skalowanie proporcjonalne do obciążenia wiatrem
+            const f = material.deflectionBase * (windLoad / CONSTANTS.BASE_WIND);
+            return f.toFixed(1);
+        }
+
+        // Obliczenie wydłużenia termicznego dL (mm)
+        function calculateExpansion(materialKey, currentTemp) {
+            const material = CONSTANTS[materialKey];
+            const L_mm = 3200;
+            const deltaT = Math.abs(currentTemp - 20); // Różnica od temp. referencyjnej (20C)
+
+            // Delta L = alpha * L * Delta T
+            // Wartości bazowe są użyte do utrzymania spójności z raportem, to jest uproszczona symulacja
+            if (materialKey === 'PVC') {
+                return ((material.expansionBase / CONSTANTS.BASE_TEMP_DIFF) * deltaT).toFixed(1);
+            } else {
+                 return ((material.expansionBase / CONSTANTS.BASE_TEMP_DIFF) * deltaT).toFixed(1);
+            }
+        }
+
+        // --- DOM UPDATES ---
+
+        function updateUI() {
+            // Update Text Values
+            document.getElementById('windValue').innerText = `${state.windLoad} Pa`;
+            document.getElementById('tempValue').innerText = `${state.temperature}°C`;
+            document.getElementById('currentTempDisplay').innerText = `${state.temperature}°C`;
+
+            const def = calculateDeflection(state.material, state.windLoad);
+            const exp = calculateExpansion(state.material, state.temperature);
+            const normPercent = Math.round((def / CONSTANTS.NORM_LIMIT) * 100);
+
+            // Update Metrics
+            const defValEl = document.getElementById('deflectionValue');
+            const isCriticalDeflection = parseFloat(def) > CONSTANTS.NORM_LIMIT;
+            
+            defValEl.innerText = `${def} mm`;
+            defValEl.className = `text-xl font-bold ${isCriticalDeflection ? 'text-red-600' : 'text-green-600'}`;
+
+            const normValEl = document.getElementById('normUsage');
+            normValEl.innerText = `${normPercent}%`;
+            normValEl.className = `text-xl font-bold ${isCriticalDeflection ? 'text-red-600' : 'text-green-600'}`;
+
+            document.getElementById('expansionValue').innerText = `${exp} mm`;
+
+            // Status Badges & Commentary
+            const statusBadge = document.getElementById('staticsStatus');
+            const visualComment = document.getElementById('visualCommentary');
+            
+            if (isCriticalDeflection) {
+                statusBadge.innerText = "KRYTYCZNE RYZYKO";
+                statusBadge.className = "px-3 py-1 text-xs font-bold rounded-full bg-red-100 text-red-800";
+                visualComment.className = "mt-4 p-3 bg-red-50 border-l-4 border-red-500 text-sm text-red-800 italic";
+                visualComment.innerHTML = `"Przy takim ugięciu (${def} mm) następuje <strong>trwałe uszkodzenie</strong> konstrukcji. Okno pracuje jak żagiel."`;
+            } else {
+                statusBadge.innerText = "BEZPIECZNE";
+                statusBadge.className = "px-3 py-1 text-xs font-bold rounded-full bg-green-100 text-green-800";
+                visualComment.className = "mt-4 p-3 bg-green-50 border-l-4 border-green-500 text-sm text-green-800 italic";
+                visualComment.innerHTML = `"Ugięcie (${def} mm) mieści się w normie. Konstrukcja jest stabilna i bezpieczna."`;
+            }
+
+            // Thermal Warning
+            const thermalWarning = document.getElementById('thermalWarning');
+            const isCriticalExpansion = state.material === 'PVC' && parseFloat(exp) > 5;
+            if (isCriticalExpansion) {
+                thermalWarning.classList.remove('hidden');
+                document.getElementById('expansionValue').classList.add('text-red-600');
+            } else {
+                thermalWarning.classList.add('hidden');
+                document.getElementById('expansionValue').classList.remove('text-red-600');
+            }
+            if (state.material === 'ALU' && isCriticalExpansion) {
+                document.getElementById('expansionValue').classList.add('text-amber-600');
+            }
+
+
+            // Update Material Buttons
+            const btnPvc = document.getElementById('btn-pvc');
+            const btnAlu = document.getElementById('btn-alu');
+            if (state.material === 'PVC') {
+                btnPvc.className = "flex-1 py-2 px-4 rounded-md text-sm font-bold transition-colors bg-red-100 text-red-700 border border-red-200 shadow-inner";
+                btnAlu.className = "flex-1 py-2 px-4 rounded-md text-sm font-bold transition-colors text-slate-500 hover:bg-slate-50";
+            } else {
+                btnPvc.className = "flex-1 py-2 px-4 rounded-md text-sm font-bold transition-colors text-slate-500 hover:bg-slate-50";
+                btnAlu.className = "flex-1 py-2 px-4 rounded-md text-sm font-bold transition-colors bg-green-100 text-green-700 border border-green-200 shadow-inner";
+            }
+
+            // Trigger Charts & Visuals Update
+            updateCharts(def, exp);
+            drawBeam(def, isCriticalDeflection);
+        }
+
+        // --- CHARTS ---
+
+        function initCharts() {
+            // Deflection Chart
+            const ctxDef = document.getElementById('deflectionChart').getContext('2d');
+            deflectionChartInstance = new Chart(ctxDef, {
+                type: 'bar',
+                data: {
+                    labels: ['Norma (L/300)', 'Ugięcie Rzeczywiste'],
+                    datasets: [{
+                        label: 'Ugięcie (mm)',
+                        data: [CONSTANTS.NORM_LIMIT, 0],
+                        backgroundColor: ['#94a3b8', '#dc2626'],
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { enabled: true }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 120, // Skala dla ekstremalnej awarii PVC
+                            title: { display: true, text: 'Ugięcie (mm)' }
+                        }
+                    }
+                }
+            });
+
+            // Thermal Chart
+            const ctxTherm = document.getElementById('thermalChart').getContext('2d');
+            thermalChartInstance = new Chart(ctxTherm, {
+                type: 'bar',
+                indexAxis: 'y',
+                data: {
+                    labels: ['Wydłużenie (mm)'],
+                    datasets: [{
+                        label: 'Wydłużenie Termiczne',
+                        data: [0],
+                        backgroundColor: '#f59e0b',
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            max: 20, // Maksymalna skala wydłużenia
+                            title: { display: true, text: 'mm' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateCharts(deflection, expansion) {
+            // Update Deflection Chart
+            deflectionChartInstance.data.datasets[0].data[1] = deflection;
+            // Color logic
+            const defColor = parseFloat(deflection) > CONSTANTS.NORM_LIMIT ? '#dc2626' : '#16a34a';
+            deflectionChartInstance.data.datasets[0].backgroundColor[1] = defColor;
+            deflectionChartInstance.update();
+
+            // Update Thermal Chart
+            thermalChartInstance.data.datasets[0].data[0] = expansion;
+            // Color logic for thermal
+            let thermColor = '#10b981';
+            if (state.material === 'PVC' && parseFloat(expansion) > 5) {
+                thermColor = '#f59e0b'; // Amber dla PVC > 5mm
+            } else if (state.material === 'ALU' && parseFloat(expansion) > 5) {
+                thermColor = '#fbbf24'; // Jaśniejszy Amber dla Alu > 5mm (mniej krytyczne)
+            }
+            thermalChartInstance.data.datasets[0].backgroundColor[0] = thermColor;
+            thermalChartInstance.update();
+        }
+
+        // --- CANVAS VISUALIZATION ---
+
+        function drawBeam(deflectionMm, isCritical) {
+            const canvas = document.getElementById('beamCanvas');
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+
+            // Clear
+            ctx.clearRect(0, 0, width, height);
+
+            // Setup
+            const topMargin = 40;
+            const bottomMargin = 40;
+            const beamX = width / 2;
+            const beamHeight = height - topMargin - bottomMargin;
+            const scaleFactor = 3; // Przeskalowanie ugięcia dla widoczności
+
+            // Deflection in pixels (scaled)
+            const defPx = parseFloat(deflectionMm) * scaleFactor;
+
+            // Draw Reference Line (Dashed) - początkowy kształt
+            ctx.beginPath();
+            ctx.setLineDash([5, 5]);
+            ctx.moveTo(beamX, topMargin);
+            ctx.lineTo(beamX, height - bottomMargin);
+            ctx.strokeStyle = '#cbd5e1';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Draw Bending Beam (Quadratic Curve) - zdeformowany kształt
+            ctx.beginPath();
+            ctx.setLineDash([]);
+            // Start point
+            ctx.moveTo(beamX, topMargin);
+            // Control point (ciągnięty przez ugięcie)
+            ctx.quadraticCurveTo(beamX + (defPx * 2), height / 2, beamX, height - bottomMargin);
+            
+            // Style
+            ctx.lineWidth = 8;
+            ctx.strokeStyle = isCritical ? '#dc2626' : '#16a34a';
+            ctx.lineCap = 'round';
+            ctx.stroke();
+
+            // Draw Anchors
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(beamX - 20, topMargin - 10, 40, 10); // Górne zakotwienie
+            ctx.fillRect(beamX - 20, height - bottomMargin, 40, 10); // Dolne zakotwienie
+
+            // Draw "Wind" Arrows
+            const arrowColor = '#3b82f6';
+            for (let i = 1; i < 5; i++) {
+                const y = topMargin + (beamHeight * (i/5));
+                drawArrow(ctx, beamX - 50, y, beamX - 10, y, arrowColor);
+            }
+
+            // Draw Label
+            ctx.fillStyle = ctx.strokeStyle;
+            ctx.font = 'bold 14px Inter';
+            ctx.textAlign = 'left';
+            ctx.fillText(`Max Ugięcie: ${deflectionMm} mm`, beamX + defPx + 20, height / 2);
+        }
+
+        function drawArrow(ctx, fromX, fromY, toX, toY, color) {
+            const headlen = 10;
+            const angle = Math.atan2(toY - fromY, toX - fromX);
+            ctx.beginPath();
+            ctx.moveTo(fromX, fromY);
+            ctx.lineTo(toX, toY);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(toX, toY);
+            ctx.lineTo(toX - headlen * Math.cos(angle - Math.PI / 6), toY - headlen * Math.sin(angle - Math.PI / 6));
+            ctx.lineTo(toX - headlen * Math.cos(angle + Math.PI / 6), toY - headlen * Math.sin(angle + Math.PI / 6));
+            ctx.fillStyle = color;
+            ctx.fill();
+        }
+
+        // --- EVENT HANDLERS ---
+
+        function setMaterial(mat) {
+            state.material = mat;
+            updateUI();
+        }
+
+        document.getElementById('windSlider').addEventListener('input', (e) => {
+            state.windLoad = parseInt(e.target.value);
+            updateUI();
+        });
+
+        document.getElementById('tempSlider').addEventListener('input', (e) => {
+            state.temperature = parseInt(e.target.value);
+            updateUI();
+        });
+
+        // Initialize
+        window.addEventListener('load', () => {
+            // Ustaw suwak temperatury na wartość początkową 70C
+            document.getElementById('tempSlider').value = state.temperature;
+            initCharts();
+            updateUI();
+        });
+
+    </script>
+</body>
+</html>
